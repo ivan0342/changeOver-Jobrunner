@@ -2,9 +2,12 @@ package main
 
 import (
 	"bufio"
+	"changeover/src/internal/protocol"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -18,19 +21,33 @@ func main() {
 	fmt.Println(" [CLIENTE] ¡Conectado exitosamente!")
 
 	for {
-		mensaje := bufio.NewReader(os.Stdin)
-		fmt.Print(">")
-		// 2. Enviamos un mensaje al servidor (Ojo: debe terminar en \n)
-		text, _ := mensaje.ReadString('\n')
-		_, err = conexion.Write([]byte(text))
 
-		respuesta, err := bufio.NewReader(conexion).ReadString('\n')
+		fmt.Print("> ")
+		reader := bufio.NewReader(os.Stdin)
+
+		// 1. Leer la entrada del usuario
+		mensaje, _ := reader.ReadString('\n')
+		// Limpiamos los saltos de línea (\n o \r\n en Windows)
+		mensaje = strings.TrimSpace(mensaje)
+
+		// 3. Separar las palabras del mensaje en un slice temporal
+		mensajeDividido := strings.Fields(mensaje)
+
+		// Colocamos el ID primero y luego "expandimos" (...) las palabras dentro del slice
+
+		req := protocol.Request{Type: mensajeDividido[0], Cmd: mensajeDividido[1], Args: mensajeDividido[2:]}
+		bytesJson, _ := json.Marshal(req)
+
 		if err != nil {
-			fmt.Println("Error en la respuesta del servidor")
-			return
+			fmt.Println("Error al codificar los datos en json", err)
+			continue
 		}
-		fmt.Println("RESPUES RECIBIDA:", respuesta)
 
+		//enviamos los datos
+		_, err = conexion.Write(bytesJson)
+		if err != nil {
+			fmt.Println("error al enviar datos al servido", err)
+		}
 	}
 
 }
