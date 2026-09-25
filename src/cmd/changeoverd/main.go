@@ -51,14 +51,19 @@ func manejarCliente(conexion net.Conn, jm *jobmanager.JobManager) {
 			}
 			return
 		}
-
-		trabajo := protocol.Job{
-			ID:         "",
-			Comando:    tokensRecibidos.Cmd,
-			Argumentos: tokensRecibidos.Args,
+		var resp protocol.Response
+		if tokensRecibidos.Type == "list" {
+			resp = jm.DefFunc(tokensRecibidos.Type, protocol.Job{})
+			encoder.Encode(resp)
+		} else {
+			trabajo := protocol.Job{
+				ID:         "",
+				Comando:    tokensRecibidos.Cmd,
+				Argumentos: tokensRecibidos.Args,
+			}
+			resp = jm.DefFunc(tokensRecibidos.Type, trabajo)
+			encoder.Encode(resp)
 		}
-		resp := jm.DefFunc(tokensRecibidos.Type, trabajo)
-		encoder.Encode(resp)
 
 	}
 

@@ -59,11 +59,28 @@ func main() {
 			break
 		}
 
-		// 4. Mostramos el resultado en pantalla
-		if respuesta.Ok {
-			fmt.Printf(" [RESPUESTA SERVIDOR] Status: OK | JobID: %s\n", respuesta.JobID)
-		} else {
-			fmt.Printf(" [RESPUESTA SERVIDOR] Status: ERROR | Detalle: %s\n", respuesta.Error)
+		switch mensajeDividido[0] {
+		case "submit":
+			// 4. Mostramos el resultado en pantalla
+			if respuesta.Ok {
+				fmt.Printf(" [RESPUESTA SERVIDOR] Status: OK | JobID: %s\n", respuesta.JobID)
+			} else {
+				fmt.Printf(" [RESPUESTA SERVIDOR] Status: ERROR | Detalle: %s\n", respuesta.Error)
+			}
+		case "status":
+			if respuesta.Ok {
+				fmt.Println(" [RESPUESTA SERVIDOR] Status: OK | JobID:\n", respuesta.JobID, respuesta.Status, respuesta.ExitCode)
+			} else {
+				fmt.Printf(" [RESPUESTA SERVIDOR] Status: ERROR | Detalle: %s\n", respuesta.Error)
+			}
+		case "list":
+			if respuesta.Ok {
+				for clave, valor := range respuesta.Storage {
+					fmt.Println(clave, valor.Stdout, valor.Estado)
+				}
+			} else {
+				fmt.Printf(" [RESPUESTA SERVIDOR] Status: ERROR | Detalle: %s\n", respuesta.Error)
+			}
 		}
 
 	}

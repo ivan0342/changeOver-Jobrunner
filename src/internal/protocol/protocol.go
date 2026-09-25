@@ -21,6 +21,10 @@ type Response struct {
 	Ok    bool
 	Error string
 	JobID string
+
+	Status   string
+	ExitCode string
+	Storage  map[string]*Job
 }
 
 const (

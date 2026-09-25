@@ -113,6 +113,22 @@ func (j *JobManager) submit(comando string, argumentos []string) string {
 	return jobID
 }
 
+func (j *JobManager) status(JobId string) []string {
+
+	var exitCode string
+	var status = j.storage[JobId].Estado
+	if j.storage[JobId].Stdout == "" {
+		exitCode = j.storage[JobId].Stderr
+	} else {
+		exitCode = j.storage[JobId].Stdout
+	}
+	if status == protocol.StateRunning {
+		return []string{JobId, status, ""}
+	} else {
+		return []string{JobId, status, exitCode}
+	}
+}
+
 func (j *JobManager) DefFunc(tipo string, trabajo protocol.Job) protocol.Response {
 	switch tipo {
 	case "submit":
@@ -120,7 +136,18 @@ func (j *JobManager) DefFunc(tipo string, trabajo protocol.Job) protocol.Respons
 			fmt.Println("seleccionaste el tipo submit")
 			jobId := j.submit(trabajo.Comando, trabajo.Argumentos)
 			return protocol.Response{Ok: true, JobID: jobId}
+		}
+	case "status":
+		{
+			fmt.Println("Sleccionaste el tipo estatus")
+			status := j.status(trabajo.Comando)
+			return protocol.Response{Ok: true, JobID: status[0], Status: status[1], ExitCode: status[2]}
 
+		}
+	case "list":
+		{
+			fmt.Println("Seleccionaste el tipo lista")
+			return protocol.Response{Ok: true, Storage: j.storage}
 		}
 
 	default:
