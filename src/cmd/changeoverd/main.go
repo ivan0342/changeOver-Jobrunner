@@ -37,7 +37,7 @@ func manejarCliente(conexion net.Conn, jm *jobmanager.JobManager) {
 	fmt.Println("el cliente se pudo conectar desde: ", conexion.RemoteAddr())
 
 	decoder := json.NewDecoder(conexion)
-
+	encoder := json.NewEncoder(conexion)
 	for {
 		var tokensRecibidos protocol.Request
 		//var response protocol.Response;
@@ -51,15 +51,14 @@ func manejarCliente(conexion net.Conn, jm *jobmanager.JobManager) {
 			}
 			return
 		}
+
 		trabajo := protocol.Job{
 			ID:         "",
 			Comando:    tokensRecibidos.Cmd,
 			Argumentos: tokensRecibidos.Args,
 		}
-		jm.DefFunc(tokensRecibidos.Type, trabajo)
-		fmt.Println("es tipo que mandaste es", tokensRecibidos.Type, "y la estructura que mandaste es", trabajo)
-		// 3. Procesamos el arreglo recibido
-		fmt.Printf("[SERVIDOR] Datos recibidos: %v (Tipo: %T)\n", tokensRecibidos, tokensRecibidos)
+		resp := jm.DefFunc(tokensRecibidos.Type, trabajo)
+		encoder.Encode(resp)
 
 	}
 

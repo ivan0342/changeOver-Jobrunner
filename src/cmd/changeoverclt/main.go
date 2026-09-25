@@ -17,9 +17,11 @@ func main() {
 		fmt.Println(" [CLIENTE] No se pudo conectar al servidor:", err)
 		return
 	}
+
 	defer conexion.Close() // Nos aseguramos de colgar al terminar
 	fmt.Println(" [CLIENTE] ¡Conectado exitosamente!")
 
+	decoder := json.NewDecoder(conexion)
 	for {
 
 		fmt.Print("> ")
@@ -48,6 +50,22 @@ func main() {
 		if err != nil {
 			fmt.Println("error al enviar datos al servido", err)
 		}
+
+		// 3. RECIBIMOS LA RESPUESTA DEL SERVIDOR
+		var respuesta protocol.Response // Asegúrate de tener esta estructura en protocol
+		err = decoder.Decode(&respuesta)
+		if err != nil {
+			fmt.Println("Error o desconexión al recibir respuesta del servidor:", err)
+			break
+		}
+
+		// 4. Mostramos el resultado en pantalla
+		if respuesta.Ok {
+			fmt.Printf(" [RESPUESTA SERVIDOR] Status: OK | JobID: %s\n", respuesta.JobID)
+		} else {
+			fmt.Printf(" [RESPUESTA SERVIDOR] Status: ERROR | Detalle: %s\n", respuesta.Error)
+		}
+
 	}
 
 }

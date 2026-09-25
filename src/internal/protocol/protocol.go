@@ -4,6 +4,11 @@ type Job struct {
 	ID         string
 	Comando    string
 	Argumentos []string
+	Estado     string
+	Stdout     string
+	Stderr     string
+	ErrorMsg   string
+	ExitCode   int
 }
 
 type Request struct {
@@ -17,3 +22,10 @@ type Response struct {
 	Error string
 	JobID string
 }
+
+const (
+	StateQueued    = "QUEUED"
+	StateRunning   = "RUNNING"
+	StateSucceeded = "SUCCEEDED"
+	StateFailed    = "FAILED"
+)
