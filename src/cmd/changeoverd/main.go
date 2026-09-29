@@ -52,18 +52,19 @@ func manejarCliente(conexion net.Conn, jm *jobmanager.JobManager) {
 			return
 		}
 		var resp protocol.Response
-		if tokensRecibidos.Type == "list" {
-			resp = jm.DefFunc(tokensRecibidos.Type, protocol.Job{})
-			encoder.Encode(resp)
-		} else {
-			trabajo := protocol.Job{
-				ID:         "",
-				Comando:    tokensRecibidos.Cmd,
-				Argumentos: tokensRecibidos.Args,
-			}
-			resp = jm.DefFunc(tokensRecibidos.Type, trabajo)
-			encoder.Encode(resp)
+		switch tokensRecibidos.Type {
+		case "status", "cancel":
+			// para status/cancel, lo que el cliente manda en Cmd es el job_id
+			// (ver ajuste sugerido abajo en el cliente)
+			resp = jm.DefFunc(tokensRecibidos.Type, protocol.Job{}, tokensRecibidos.Cmd)
+		case "submit":
+			trabajo := protocol.Job{Comando: tokensRecibidos.Cmd, Argumentos: tokensRecibidos.Args}
+			resp = jm.DefFunc(tokensRecibidos.Type, trabajo, "")
+		default:
+			resp = jm.DefFunc(tokensRecibidos.Type, protocol.Job{}, "")
 		}
+
+		encoder.Encode(resp)
 
 	}
 

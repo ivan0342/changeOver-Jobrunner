@@ -113,42 +113,70 @@ func (j *JobManager) submit(comando string, argumentos []string) string {
 	return jobID
 }
 
-func (j *JobManager) status(JobId string) []string {
+func (j *JobManager) status(jobId string) (protocol.Job, error) {
 
-	var exitCode string
-	var status = j.storage[JobId].Estado
-	if j.storage[JobId].Stdout == "" {
-		exitCode = j.storage[JobId].Stderr
-	} else {
-		exitCode = j.storage[JobId].Stdout
+	j.mu.RLock()
+	job, ok := j.storage[jobId]
+	j.mu.RUnlock()
+
+	if !ok {
+		return protocol.Job{}, fmt.Errorf("no existe un trabajo con ID %q", jobId)
 	}
-	if status == protocol.StateRunning {
-		return []string{JobId, status, ""}
-	} else {
-		return []string{JobId, status, exitCode}
-	}
+
+	// Copiamos los campos a un valor nuevo (no el puntero interno), para
+	// que quien lo reciba no comparta memoria con el mapa protegido.
+	return protocol.Job{
+		ID:       job.ID,
+		Comando:  job.Comando,
+		Estado:   job.Estado,
+		ExitCode: job.ExitCode,
+		Stdout:   job.Stdout,
+		Stderr:   job.Stderr,
+		ErrorMsg: job.ErrorMsg,
+	}, nil
 }
 
-func (j *JobManager) DefFunc(tipo string, trabajo protocol.Job) protocol.Response {
+func (j *JobManager) list() []protocol.Job {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+
+	jobs := make([]protocol.Job, 0, len(j.storage))
+	for _, job := range j.storage {
+		jobs = append(jobs, protocol.Job{
+			ID:       job.ID,
+			Comando:  job.Comando,
+			Estado:   job.Estado,
+			ExitCode: job.ExitCode,
+			Stdout:   job.Stdout,
+			Stderr:   job.Stderr,
+			ErrorMsg: job.ErrorMsg,
+		})
+	}
+	return jobs
+}
+
+func (j *JobManager) DefFunc(tipo string, trabajo protocol.Job, jobId string) protocol.Response {
 	switch tipo {
 	case "submit":
-		{
-			fmt.Println("seleccionaste el tipo submit")
-			jobId := j.submit(trabajo.Comando, trabajo.Argumentos)
-			return protocol.Response{Ok: true, JobID: jobId}
-		}
-	case "status":
-		{
-			fmt.Println("Sleccionaste el tipo estatus")
-			status := j.status(trabajo.Comando)
-			return protocol.Response{Ok: true, JobID: status[0], Status: status[1], ExitCode: status[2]}
+		jobID := j.submit(trabajo.Comando, trabajo.Argumentos)
+		return protocol.Response{Ok: true, JobID: jobID}
 
+	case "status":
+		job, err := j.status(jobId)
+		if err != nil {
+			return protocol.Response{Ok: false, Error: err.Error()}
 		}
+		return protocol.Response{
+			Ok:       true,
+			JobID:    job.ID,
+			Status:   job.Estado,
+			ExitCode: job.ExitCode,
+			Stdout:   job.Stdout,
+			Stderr:   job.Stderr,
+		}
+
 	case "list":
-		{
-			fmt.Println("Seleccionaste el tipo lista")
-			return protocol.Response{Ok: true, Storage: j.storage}
-		}
+		return protocol.Response{Ok: true, Jobs: j.list()}
 
 	default:
 		return protocol.Response{Ok: false, Error: "tipo desconocido: " + tipo}

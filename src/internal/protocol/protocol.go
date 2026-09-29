@@ -23,8 +23,11 @@ type Response struct {
 	JobID string
 
 	Status   string
-	ExitCode string
-	Storage  map[string]*Job
+	ExitCode int    // corregido: era string, ahora es el número real
+	Stdout   string // nuevo: para regresar el stdout por separado
+	Stderr   string // nuevo: para regresar el stderr por separado
+
+	Jobs []Job
 }
 
 const (
