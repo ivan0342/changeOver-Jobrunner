@@ -35,4 +35,5 @@ const (
 	StateRunning   = "RUNNING"
 	StateSucceeded = "SUCCEEDED"
 	StateFailed    = "FAILED"
+	StateCanceled  = "CANCELED"
 )

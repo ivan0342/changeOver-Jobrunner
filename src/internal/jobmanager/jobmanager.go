@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"changeover/src/internal/protocol"
 	"fmt"
+	"os"
 	"os/exec"
 	"sync"
 )
@@ -11,16 +12,18 @@ import (
 type JobManager struct {
 	jobs    chan protocol.Job
 	storage map[string]*protocol.Job
+	procs   map[string]*os.Process
 	mu      sync.RWMutex
 	id      int
 }
 
 func NewManager() *JobManager {
 	var numWorkers int
-	numWorkers = 5
+	numWorkers = 10
 	jb := &JobManager{
 		jobs:    make(chan protocol.Job, 100),
 		storage: make(map[string]*protocol.Job),
+		procs:   make(map[string]*os.Process),
 	}
 	var i int
 	for i = 1; i <= numWorkers; i++ {
@@ -37,6 +40,12 @@ func (j *JobManager) worker(workerId int) {
 
 		// Actualizamos estado en el mapa
 		j.mu.Lock()
+
+		actual, existe := j.storage[job.ID]
+		if existe && actual.Estado == protocol.StateCanceled {
+			j.mu.Unlock()
+			continue // no lo ejecutamos, ya fue cancelado en cola
+		}
 		j.storage[job.ID] = &job
 		j.storage[job.ID].Estado = protocol.StateRunning
 		j.mu.Unlock()
@@ -62,8 +71,23 @@ func (j *JobManager) worker(workerId int) {
 			continue
 		}
 
+		j.mu.Lock()
+		j.procs[job.ID] = cmd.Process
+		j.mu.Unlock()
+
 		err = cmd.Wait()
 
+		j.mu.Lock()
+		defer_ := j.storage[job.ID] // solo para claridad, uso directo abajo
+
+		if defer_.Estado == protocol.StateCanceled {
+			// Cancel() ya lo marcó mientras corría; solo completamos su salida.
+			defer_.Stdout = stdout.String()
+			defer_.Stderr = stderr.String()
+			delete(j.procs, job.ID)
+			j.mu.Unlock()
+			continue
+		}
 		var exitCode int = 0
 		var estado string = "SUCCEEDED"
 		var errorMsg string = ""
@@ -82,12 +106,12 @@ func (j *JobManager) worker(workerId int) {
 		}
 
 		// --- TODO 6: Actualizar el storage con los resultados finales ---
-		j.mu.Lock()
-		j.storage[job.ID].Estado = estado
-		j.storage[job.ID].ExitCode = exitCode
-		j.storage[job.ID].ErrorMsg = errorMsg
-		j.storage[job.ID].Stdout = stdout.String() // Convierte el buffer de bytes a string
-		j.storage[job.ID].Stderr = stderr.String()
+		defer_.Estado = estado
+		defer_.ExitCode = exitCode
+		defer_.ErrorMsg = errorMsg
+		defer_.Stdout = stdout.String()
+		defer_.Stderr = stderr.String()
+		delete(j.procs, job.ID)
 		j.mu.Unlock()
 
 		fmt.Printf("[Worker %d] Completó %s con estado %s (Exit Code: %d), y el output es %s\n", workerId, job.ID, estado, exitCode, job.Stdout)
@@ -100,13 +124,15 @@ func (j *JobManager) submit(comando string, argumentos []string) string {
 	j.mu.Lock()
 	j.id++
 	jobID := fmt.Sprintf("Job-%d", j.id)
-	j.mu.Unlock()
 
 	nuevoJob := protocol.Job{
 		ID:         jobID,
 		Comando:    comando,
 		Argumentos: argumentos,
+		Estado:     protocol.StateQueued,
 	}
+	j.storage[jobID] = &nuevoJob
+	j.mu.Unlock()
 
 	j.jobs <- nuevoJob
 
@@ -155,6 +181,38 @@ func (j *JobManager) list() []protocol.Job {
 	return jobs
 }
 
+func (j *JobManager) cancel(jobId string) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	job, ok := j.storage[jobId]
+	if !ok {
+		return fmt.Errorf("no existe un trabajo con ID %q", jobId)
+	}
+
+	switch job.Estado {
+	case protocol.StateQueued:
+		// Aún no arranca: solo lo marcamos. El worker lo va a ver cancelado
+		// cuando le toque su turno y no lo va a ejecutar (ver paso 3).
+		job.Estado = protocol.StateCanceled
+		return nil
+
+	case protocol.StateRunning:
+		proc, existeProc := j.procs[jobId]
+		if !existeProc || proc == nil {
+			return fmt.Errorf("no se encontró el proceso en ejecución para %q", jobId)
+		}
+		if err := proc.Kill(); err != nil {
+			return fmt.Errorf("no se pudo cancelar el trabajo: %w", err)
+		}
+		job.Estado = protocol.StateCanceled
+		return nil
+
+	default:
+		return fmt.Errorf("el trabajo %q ya terminó (estado %s), no se puede cancelar", jobId, job.Estado)
+	}
+}
+
 func (j *JobManager) DefFunc(tipo string, trabajo protocol.Job, jobId string) protocol.Response {
 	switch tipo {
 	case "submit":
@@ -178,6 +236,11 @@ func (j *JobManager) DefFunc(tipo string, trabajo protocol.Job, jobId string) pr
 	case "list":
 		return protocol.Response{Ok: true, Jobs: j.list()}
 
+	case "cancel":
+		if err := j.cancel(jobId); err != nil {
+			return protocol.Response{Ok: false, Error: err.Error()}
+		}
+		return protocol.Response{Ok: true}
 	default:
 		return protocol.Response{Ok: false, Error: "tipo desconocido: " + tipo}
 	}
