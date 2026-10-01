@@ -19,7 +19,7 @@ type JobManager struct {
 
 func NewManager() *JobManager {
 	var numWorkers int
-	numWorkers = 10
+	numWorkers = 3
 	jb := &JobManager{
 		jobs:    make(chan protocol.Job, 100),
 		storage: make(map[string]*protocol.Job),
@@ -66,8 +66,8 @@ func (j *JobManager) worker(workerId int) {
 			j.storage[job.ID].ErrorMsg = err.Error()
 			j.storage[job.ID].Estado = protocol.StateFailed
 			j.storage[job.ID].ExitCode = -1
-			fmt.Printf("❌ [%s] Error al ejecutar: %v\n", job.ID, err)
-			fmt.Printf("📋 Detalle del error: %s\n", stderr.String())
+			fmt.Printf("[%s] Error al ejecutar: %v\n", job.ID, err)
+			fmt.Printf("Detalle del error: %s\n", stderr.String())
 			continue
 		}
 
@@ -119,7 +119,7 @@ func (j *JobManager) worker(workerId int) {
 	}
 }
 
-func (j *JobManager) submit(comando string, argumentos []string) string {
+func (j *JobManager) Submit(comando string, argumentos []string) string {
 
 	j.mu.Lock()
 	j.id++
@@ -139,7 +139,7 @@ func (j *JobManager) submit(comando string, argumentos []string) string {
 	return jobID
 }
 
-func (j *JobManager) status(jobId string) (protocol.Job, error) {
+func (j *JobManager) Status(jobId string) (protocol.Job, error) {
 
 	j.mu.RLock()
 	job, ok := j.storage[jobId]
@@ -162,7 +162,7 @@ func (j *JobManager) status(jobId string) (protocol.Job, error) {
 	}, nil
 }
 
-func (j *JobManager) list() []protocol.Job {
+func (j *JobManager) List() []protocol.Job {
 	j.mu.RLock()
 	defer j.mu.RUnlock()
 
@@ -181,7 +181,7 @@ func (j *JobManager) list() []protocol.Job {
 	return jobs
 }
 
-func (j *JobManager) cancel(jobId string) error {
+func (j *JobManager) Cancel(jobId string) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -216,11 +216,11 @@ func (j *JobManager) cancel(jobId string) error {
 func (j *JobManager) DefFunc(tipo string, trabajo protocol.Job, jobId string) protocol.Response {
 	switch tipo {
 	case "submit":
-		jobID := j.submit(trabajo.Comando, trabajo.Argumentos)
+		jobID := j.Submit(trabajo.Comando, trabajo.Argumentos)
 		return protocol.Response{Ok: true, JobID: jobID}
 
 	case "status":
-		job, err := j.status(jobId)
+		job, err := j.Status(jobId)
 		if err != nil {
 			return protocol.Response{Ok: false, Error: err.Error()}
 		}
@@ -234,10 +234,10 @@ func (j *JobManager) DefFunc(tipo string, trabajo protocol.Job, jobId string) pr
 		}
 
 	case "list":
-		return protocol.Response{Ok: true, Jobs: j.list()}
+		return protocol.Response{Ok: true, Jobs: j.List()}
 
 	case "cancel":
-		if err := j.cancel(jobId); err != nil {
+		if err := j.Cancel(jobId); err != nil {
 			return protocol.Response{Ok: false, Error: err.Error()}
 		}
 		return protocol.Response{Ok: true}
