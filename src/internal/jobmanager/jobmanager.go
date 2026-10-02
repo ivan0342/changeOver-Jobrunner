@@ -142,15 +142,15 @@ func (j *JobManager) Submit(comando string, argumentos []string) string {
 func (j *JobManager) Status(jobId string) (protocol.Job, error) {
 
 	j.mu.RLock()
-	job, ok := j.storage[jobId]
-	j.mu.RUnlock()
+	defer j.mu.RUnlock()
 
+	job, ok := j.storage[jobId]
 	if !ok {
 		return protocol.Job{}, fmt.Errorf("no existe un trabajo con ID %q", jobId)
 	}
 
-	// Copiamos los campos a un valor nuevo (no el puntero interno), para
-	// que quien lo reciba no comparta memoria con el mapa protegido.
+	// Copiamos los campos DENTRO del lock, para que ningún worker pueda
+	// escribirlos a medio camino de esta copia.
 	return protocol.Job{
 		ID:       job.ID,
 		Comando:  job.Comando,

@@ -27,8 +27,17 @@ func main() {
 		fmt.Print("> ")
 
 		// 1. Leer la entrada del usuario
-		mensaje, _ := reader.ReadString('\n')
+		mensaje, errLectura := reader.ReadString('\n')
 		mensaje = strings.TrimSpace(mensaje)
+
+		if errLectura != nil {
+			if mensaje != "" {
+				// Última línea sin salto final: igual la procesamos abajo.
+			} else {
+				fmt.Println("\nentrada finalizada, cerrando cliente.")
+				return
+			}
+		}
 
 		// 2. Separar las palabras del mensaje
 		mensajeDividido := strings.Fields(mensaje)
@@ -64,6 +73,10 @@ func main() {
 
 		case "list":
 			req = protocol.Request{Type: "list"}
+
+		case "exit":
+			fmt.Println("Saliendo del cliente Changeover...")
+			os.Exit(0)
 
 		default:
 			fmt.Println("comando desconocido:", mensajeDividido[0])
