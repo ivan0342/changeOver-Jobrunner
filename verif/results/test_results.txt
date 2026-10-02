@@ -1,0 +1,95 @@
+=== [1/5] Compilando el servicio y el cliente ===
+=== [2/5] Ejecutando pruebas unitarias de JobManager (TC-001 a TC-006) ===
+=== RUN   TestTC001_SubmitValido
+[Worker 3] Tomó el trabajo Job-1 de la cola
+[Worker 3] Completó Job-1
+[Worker 3] Completó Job-1 con estado SUCCEEDED (Exit Code: 0), y el output es hello world
+
+--- PASS: TestTC001_SubmitValido (0.05s)
+=== RUN   TestTC002_ConcurrenciaBasica
+[Worker 3] Tomó el trabajo Job-1 de la cola
+[Worker 1] Tomó el trabajo Job-2 de la cola
+[Worker 1] Completó Job-2
+[Worker 2] Tomó el trabajo Job-3 de la cola
+[Worker 2] Completó Job-3
+[Worker 3] Completó Job-1
+[Worker 1] Completó Job-2 con estado SUCCEEDED (Exit Code: 0), y el output es 
+[Worker 1] Tomó el trabajo Job-4 de la cola
+[Worker 3] Completó Job-1 con estado SUCCEEDED (Exit Code: 0), y el output es 
+[Worker 3] Tomó el trabajo Job-5 de la cola
+[Worker 1] Completó Job-4
+[Worker 3] Completó Job-5
+[Worker 2] Completó Job-3 con estado SUCCEEDED (Exit Code: 0), y el output es 
+[Worker 2] Tomó el trabajo Job-6 de la cola
+[Worker 2] Completó Job-6
+[Worker 3] Completó Job-5 con estado SUCCEEDED (Exit Code: 0), y el output es 
+[Worker 3] Tomó el trabajo Job-7 de la cola
+[Worker 3] Completó Job-7
+[Worker 2] Completó Job-6 con estado SUCCEEDED (Exit Code: 0), y el output es 
+[Worker 2] Tomó el trabajo Job-8 de la cola
+[Worker 2] Completó Job-8
+[Worker 1] Completó Job-4 con estado SUCCEEDED (Exit Code: 0), y el output es 
+[Worker 1] Tomó el trabajo Job-9 de la cola
+[Worker 1] Completó Job-9
+[Worker 3] Completó Job-7 con estado SUCCEEDED (Exit Code: 0), y el output es 
+[Worker 3] Tomó el trabajo Job-10 de la cola
+[Worker 2] Completó Job-8 con estado SUCCEEDED (Exit Code: 0), y el output es 
+[Worker 3] Completó Job-10
+[Worker 1] Completó Job-9 con estado SUCCEEDED (Exit Code: 0), y el output es 
+[Worker 3] Completó Job-10 con estado SUCCEEDED (Exit Code: 0), y el output es 
+--- PASS: TestTC002_ConcurrenciaBasica (0.46s)
+=== RUN   TestTC003_EstadosYTiempos
+[Worker 1] Tomó el trabajo Job-1 de la cola
+[Worker 1] Completó Job-1
+[Worker 1] Completó Job-1 con estado SUCCEEDED (Exit Code: 0), y el output es 
+--- PASS: TestTC003_EstadosYTiempos (0.35s)
+=== RUN   TestTC004_ConsultarYListar
+[Worker 2] Tomó el trabajo Job-2 de la cola
+[Worker 1] Tomó el trabajo Job-1 de la cola
+[Worker 2] Completó Job-2
+[Worker 1] Completó Job-1
+[Worker 2] Completó Job-2 con estado SUCCEEDED (Exit Code: 0), y el output es job2
+
+[Worker 1] Completó Job-1 con estado SUCCEEDED (Exit Code: 0), y el output es job1
+
+--- PASS: TestTC004_ConsultarYListar (0.05s)
+=== RUN   TestTC005_Cancelar
+[Worker 1] Tomó el trabajo Job-1 de la cola
+[Worker 1] Completó Job-1
+--- PASS: TestTC005_Cancelar (0.10s)
+=== RUN   TestTC006_StdoutStderrAndExitCode
+[Worker 3] Tomó el trabajo Job-1 de la cola
+[Worker 3] Completó Job-1
+[Worker 3] Completó Job-1 con estado SUCCEEDED (Exit Code: 0), y el output es prueba_exitosa
+
+[Worker 1] Tomó el trabajo Job-2 de la cola
+[Worker 1] Completó Job-2
+[Worker 1] Completó Job-2 con estado FAILED (Exit Code: 2), y el output es 
+--- PASS: TestTC006_StdoutStderrAndExitCode (0.10s)
+PASS
+ok  	changeover/src/internal/jobmanager	(cached)
+=== [3/5] Verificando ausencia de condiciones de carrera (-race) ===
+ok  	changeover/src/internal/jobmanager	(cached)
+=== [4/5] Levantando el servicio para la prueba de flujo funcional ===
+--- Enviando flujo: submit, status, list, submit+cancel, comando inválido ---
+ [CLIENTE] ¡Conectado exitosamente!
+>  [RESPUESTA SERVIDOR] Status: OK | JobID: Job-1
+>  [RESPUESTA SERVIDOR] Status: OK | JobID: Job-2
+>  JobID: Job-1 | Estado: SUCCEEDED | ExitCode: 0
+--- stdout ---
+hola mundo
+
+> Job-1	SUCCEEDED	stdout="hola mundo\n"
+Job-2	RUNNING	stdout=""
+>  [RESPUESTA SERVIDOR] Trabajo cancelado.
+>  JobID: Job-2 | Estado: CANCELED | ExitCode: 0
+>  [RESPUESTA SERVIDOR] Status: OK | JobID: Job-3
+>  JobID: Job-3 | Estado: FAILED | ExitCode: -1
+> Job-3	FAILED	stdout=""
+Job-1	SUCCEEDED	stdout="hola mundo\n"
+Job-2	CANCELED	stdout=""
+> 
+entrada finalizada, cerrando cliente.
+=== [5/5] Deteniendo el servicio ===
+=== Verificación completada con éxito ===
+Log del servicio guardado en /tmp/changeoverd.log
